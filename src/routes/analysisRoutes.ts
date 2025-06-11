@@ -5,11 +5,69 @@ import { rateLimitMiddleware } from '../middleware/rateLimit'
 import { validateAnalysisRequest } from '../middleware/validation'
 import { logger } from '../utils/logger'
 import { ClientRequest } from 'http'
+import axios from 'axios'
 
 const router = Router()
 const ANALYSIS_SERVICE_URL = process.env.ANALYSIS_SERVICE_URL || 'http://localhost:3002'
 
-// Apply middleware
+// Temporary debug route
+router.all('/webhook/n8n-callback', (req: Request, res: Response) => {
+  logger.info('N8N DEBUG - Full request details', {
+    method: req.method,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    headers: req.headers,
+    body: req.body,
+    query: req.query
+  })
+  
+  res.status(200).json({ 
+    received: true, 
+    method: req.method,
+    message: 'Debug successful' 
+  })
+})
+
+// N8N webhook callback (no auth required)
+router.all('/webhook/n8n-callback', async (req: Request, res: Response) => {
+  try {
+    logger.info('N8N webhook callback received', {
+      method: req.method,
+      path: req.path,
+      body: req.body
+    })
+
+    const response = await axios({
+      method: req.method.toLowerCase() as any,
+      url: `${ANALYSIS_SERVICE_URL}/api/v1/webhook/n8n-callback`,
+      data: req.body,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    })
+
+    logger.info('N8N callback forwarded successfully', {
+      status: response.status
+    })
+
+    res.status(response.status).json(response.data)
+  } catch (error: any) {
+    logger.error('N8N callback forward failed', {
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    })
+
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data)
+    } else {
+      res.status(500).json({ error: 'Failed to forward callback' })
+    }
+  }
+})
+
+// Apply middleware to authenticated routes only
 router.use(authMiddleware)
 router.use(rateLimitMiddleware.general)
 
@@ -50,15 +108,6 @@ router.get('/:analysisId/status',
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
     }
-  })
-)
-
-// N8N webhook callback (no auth required)
-router.post('/webhook/n8n-callback',
-  createProxyMiddleware({
-    target: ANALYSIS_SERVICE_URL,
-    pathRewrite: { '^/api/v1/analysis': '/api/v1' },
-    changeOrigin: true
   })
 )
 
