@@ -3,6 +3,8 @@ import { createProxyMiddleware } from 'http-proxy-middleware'
 import { authMiddleware } from '../middleware/auth'
 import { rateLimitMiddleware } from '../middleware/rateLimit'
 import { logger } from '../utils/logger'
+import { Request, Response } from 'express'
+import { ClientRequest } from 'http'
 
 const router = Router()
 const RESULTS_SERVICE_URL = process.env.RESULTS_SERVICE_URL || 'http://localhost:3003'
@@ -17,7 +19,7 @@ router.get('/',
     target: RESULTS_SERVICE_URL,
     pathRewrite: { '^/api/v1/results': '/api/v1/results' },
     changeOrigin: true,
-    onProxyReq: (proxyReq, req) => {
+    onProxyReq: (proxyReq: ClientRequest, req: Request) => {
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
       proxyReq.setHeader('X-User-Role', user?.role || 'user')
@@ -26,6 +28,12 @@ router.get('/',
       if (user?.role !== 'admin') {
         // In production, you might want to filter results by user ownership
         // proxyReq.setHeader('X-Filter-User', user.id)
+      }
+    },
+    onError: (err: Error, req: Request, res: Response) => {
+      logger.error('Results service proxy error', { error: err.message })
+      if (res && !res.headersSent) {
+        res.status(503).json({ error: 'Results service unavailable' })
       }
     }
   })
@@ -37,9 +45,15 @@ router.get('/:analysisId',
     target: RESULTS_SERVICE_URL,
     pathRewrite: { '^/api/v1/results': '/api/v1/results' },
     changeOrigin: true,
-    onProxyReq: (proxyReq, req) => {
+    onProxyReq: (proxyReq: ClientRequest, req: Request) => {
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
+    },
+    onError: (err: Error, req: Request, res: Response) => {
+      logger.error('Results service proxy error', { error: err.message })
+      if (res && !res.headersSent) {
+        res.status(503).json({ error: 'Results service unavailable' })
+      }
     }
   })
 )
@@ -50,7 +64,7 @@ router.post('/',
     target: RESULTS_SERVICE_URL,
     pathRewrite: { '^/api/v1/results': '/api/v1/results' },
     changeOrigin: true,
-    onProxyReq: (proxyReq, req) => {
+    onProxyReq: (proxyReq: ClientRequest, req: Request) => {
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
       
@@ -58,6 +72,12 @@ router.post('/',
         userId: user?.id,
         resultsCount: Array.isArray(req.body) ? req.body.length : 1
       })
+    },
+    onError: (err: Error, req: Request, res: Response) => {
+      logger.error('Results service proxy error', { error: err.message })
+      if (res && !res.headersSent) {
+        res.status(503).json({ error: 'Results service unavailable' })
+      }
     }
   })
 )
@@ -68,9 +88,15 @@ router.delete('/:resultId',
     target: RESULTS_SERVICE_URL,
     pathRewrite: { '^/api/v1/results': '/api/v1/results' },
     changeOrigin: true,
-    onProxyReq: (proxyReq, req) => {
+    onProxyReq: (proxyReq: ClientRequest, req: Request) => {
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
+    },
+    onError: (err: Error, req: Request, res: Response) => {
+      logger.error('Results service proxy error', { error: err.message })
+      if (res && !res.headersSent) {
+        res.status(503).json({ error: 'Results service unavailable' })
+      }
     }
   })
 )
@@ -81,9 +107,15 @@ router.get('/stats/summary',
     target: RESULTS_SERVICE_URL,
     pathRewrite: { '^/api/v1/results': '/api/v1' },
     changeOrigin: true,
-    onProxyReq: (proxyReq, req) => {
+    onProxyReq: (proxyReq: ClientRequest, req: Request) => {
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
+    },
+    onError: (err: Error, req: Request, res: Response) => {
+      logger.error('Results service proxy error', { error: err.message })
+      if (res && !res.headersSent) {
+        res.status(503).json({ error: 'Results service unavailable' })
+      }
     }
   })
 )

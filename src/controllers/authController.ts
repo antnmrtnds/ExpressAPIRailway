@@ -16,12 +16,13 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h'
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d'
 
 export class AuthController {
-  async login(req: Request, res: Response) {
+  async login(req: Request, res: Response): Promise<void> {
     try {
       const { email, password } = req.body
       
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' })
+        res.status(400).json({ error: 'Email and password are required' })
+        return
       }
       
       logger.info('Login attempt', { email })
@@ -29,10 +30,11 @@ export class AuthController {
       // Check rate limit for this IP
       const rateLimitResult = await rateLimitManager.checkAuthRateLimit(req.ip || 'unknown')
       if (!rateLimitResult.allowed) {
-        return res.status(429).json({ 
+        res.status(429).json({ 
           error: 'Too many login attempts', 
           resetTime: new Date(rateLimitResult.resetTime).toISOString() 
         })
+        return
       }
       
       // Get user from database
@@ -44,14 +46,16 @@ export class AuthController {
       
       if (error || !user || !user.password_hash) {
         logger.warn('Login failed - user not found or no password hash', { email })
-        return res.status(401).json({ error: 'Invalid credentials' })
+        res.status(401).json({ error: 'Invalid credentials' })
+        return
       }
       
       // Verify password
       const isValidPassword = await bcrypt.compare(password, user.password_hash)
       if (!isValidPassword) {
         logger.warn('Login failed - invalid password', { email })
-        return res.status(401).json({ error: 'Invalid credentials' })
+        res.status(401).json({ error: 'Invalid credentials' })
+        return
       }
       
       // Generate tokens - be more explicit with types
@@ -98,23 +102,26 @@ export class AuthController {
     }
   }
   
-  async register(req: Request, res: Response) {
+  async register(req: Request, res: Response): Promise<void> {
     try {
       const { email, password, name } = req.body
       
       if (!email || !password || !name) {
-        return res.status(400).json({ error: 'Email, password, and name are required' })
+        res.status(400).json({ error: 'Email, password, and name are required' })
+        return
       }
       
       // Add email validation
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(email)) {
-        return res.status(400).json({ error: 'Invalid email format' })
+        res.status(400).json({ error: 'Invalid email format' })
+        return
       }
       
       // Add password strength validation
       if (password.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters long' })
+        res.status(400).json({ error: 'Password must be at least 8 characters long' })
+        return
       }
       
       // Check if user already exists
@@ -125,7 +132,8 @@ export class AuthController {
         .single()
       
       if (existingUser) {
-        return res.status(409).json({ error: 'User already exists' })
+        res.status(409).json({ error: 'User already exists' })
+        return
       }
       
       // Hash password
@@ -165,19 +173,21 @@ export class AuthController {
     }
   }
   
-  async refresh(req: Request, res: Response) {
+  async refresh(req: Request, res: Response): Promise<void> {
     try {
       const { refreshToken } = req.body
       
       if (!refreshToken) {
-        return res.status(400).json({ error: 'Refresh token is required' })
+        res.status(400).json({ error: 'Refresh token is required' })
+        return
       }
       
       // Verify refresh token
       const decoded = jwt.verify(refreshToken, JWT_SECRET!) as unknown as { id: string; type: string; iat: number; exp: number }
       
       if (decoded.type !== 'refresh') {
-        return res.status(401).json({ error: 'Invalid refresh token' })
+        res.status(401).json({ error: 'Invalid refresh token' })
+        return
       }
       
       // Get user
@@ -188,7 +198,8 @@ export class AuthController {
         .single()
       
       if (error || !user) {
-        return res.status(401).json({ error: 'Invalid refresh token' })
+        res.status(401).json({ error: 'Invalid refresh token' })
+        return
       }
       
       // Generate new access token
@@ -205,36 +216,37 @@ export class AuthController {
       res.json({ accessToken })
     } catch (error) {
       logger.error('Token refresh error', { error: error instanceof Error ? error.message : 'Unknown error' })
-      res.status(401).json({ error: 'Invalid refresh token' })
+      res.status(500).json({ error: 'Internal server error' })
     }
   }
   
-  async logout(req: Request, res: Response) {
+  async logout(req: Request, res: Response): Promise<void> {
     // In a production app, you might want to blacklist the token
     res.json({ message: 'Logged out successfully' })
   }
   
-  async forgotPassword(req: Request, res: Response) {
+  async forgotPassword(req: Request, res: Response): Promise<void> {
     // Implement password reset logic
     res.json({ message: 'Password reset email sent' })
   }
   
-  async resetPassword(req: Request, res: Response) {
+  async resetPassword(req: Request, res: Response): Promise<void> {
     // Implement password reset logic
     res.json({ message: 'Password reset successfully' })
   }
   
-  async verifyEmail(req: Request, res: Response) {
+  async verifyEmail(req: Request, res: Response): Promise<void> {
     // Implement email verification logic
     res.json({ message: 'Email verified successfully' })
   }
   
-  async verifyToken(req: Request, res: Response) {
+  async verifyToken(req: Request, res: Response): Promise<void> {
     try {
       const { token } = req.body
       
       if (!token) {
-        return res.status(400).json({ error: 'Token is required' })
+        res.status(400).json({ error: 'Token is required' })
+        return
       }
       
       const decoded = jwt.verify(token, JWT_SECRET!) as unknown as any
@@ -247,7 +259,8 @@ export class AuthController {
         .single()
       
       if (error || !user) {
-        return res.status(401).json({ error: 'Invalid token' })
+        res.status(401).json({ error: 'Invalid token' })
+        return
       }
       
       res.json({ 
