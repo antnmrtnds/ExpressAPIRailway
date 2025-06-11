@@ -3,8 +3,9 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY api-gateway/package*.json ./
-COPY api-gateway/tsconfig.json ./
+COPY tsconfig.json ./tsconfig.json
+COPY package.json ./package.json
+COPY src/ ./src/
 
 # Install ALL dependencies (including dev) for building
 RUN npm install
