@@ -7,7 +7,9 @@ export const redisClient = new Redis(REDIS_URL, {
   maxRetriesPerRequest: 3,
   lazyConnect: true,
   enableReadyCheck: true,
-  enableOfflineQueue: false
+  enableOfflineQueue: true,
+  connectTimeout: 10000,
+  commandTimeout: 5000
 })
 
 redisClient.on('connect', () => {
