@@ -20,7 +20,7 @@ const searchRequestSchema = z.object({
   platforms: z.array(z.string()).default(['facebook'])
 })
 
-export function validateAnalysisRequest(req: Request, res: Response, next: NextFunction) {
+export function validateAnalysisRequest(req: Request, res: Response, next: NextFunction): void {
   try {
     const validatedData = analysisRequestSchema.parse(req.body)
     req.body = validatedData
@@ -28,13 +28,14 @@ export function validateAnalysisRequest(req: Request, res: Response, next: NextF
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn('Invalid analysis request', { errors: error.errors })
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Invalid request data',
         details: error.errors.map(err => ({
           field: err.path.join('.'),
           message: err.message
         }))
       })
+      return
     }
     
     logger.warn('Validation error', { error: error instanceof Error ? error.message : 'Unknown error' })
@@ -42,7 +43,7 @@ export function validateAnalysisRequest(req: Request, res: Response, next: NextF
   }
 }
 
-export function validateSearchRequest(req: Request, res: Response, next: NextFunction) {
+export function validateSearchRequest(req: Request, res: Response, next: NextFunction): void {
   try {
     const validatedData = searchRequestSchema.parse(req.body)
     req.body = validatedData
@@ -50,13 +51,14 @@ export function validateSearchRequest(req: Request, res: Response, next: NextFun
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn('Invalid search request', { errors: error.errors })
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Invalid request data',
         details: error.errors.map(err => ({
           field: err.path.join('.'),
           message: err.message
         }))
       })
+      return
     }
     
     logger.warn('Validation error', { error: error instanceof Error ? error.message : 'Unknown error' })

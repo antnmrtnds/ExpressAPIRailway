@@ -4,8 +4,6 @@ import { authMiddleware } from '../middleware/auth'
 import { rateLimitMiddleware } from '../middleware/rateLimit'
 import { validateSearchRequest } from '../middleware/validation'
 import { logger } from '../utils/logger'
-import { Request, Response } from 'express'
-import { ClientRequest } from 'http'
 
 const router = Router()
 const SEARCH_SERVICE_URL = process.env.SEARCH_SERVICE_URL || 'http://localhost:3001'
@@ -21,7 +19,7 @@ router.post('/ads',
     target: SEARCH_SERVICE_URL,
     pathRewrite: { '^/api/v1/search': '/api/v1/search' },
     changeOrigin: true,
-    onProxyReq: (proxyReq: ClientRequest, req: Request) => {
+    onProxyReq: (proxyReq, req) => {
       // Add user context to request
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
@@ -33,10 +31,10 @@ router.post('/ads',
         company: (req.body as any)?.company
       })
     },
-    onError: (err: Error, req: Request, res: Response) => {
+    onError: (err, req, res) => {
       logger.error('Search service proxy error', { error: err.message })
       if (res && !res.headersSent) {
-        res.status(503).json({ error: 'Search service unavailable' })
+        (res as any).status(503).json({ error: 'Search service unavailable' })
       }
     }
   })
@@ -48,7 +46,7 @@ router.get('/:searchId/status',
     target: SEARCH_SERVICE_URL,
     pathRewrite: { '^/api/v1/search': '/api/v1/search' },
     changeOrigin: true,
-    onProxyReq: (proxyReq: ClientRequest, req: Request) => {
+    onProxyReq: (proxyReq, req) => {
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
     }

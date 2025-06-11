@@ -12,7 +12,8 @@ router.use(rateLimitMiddleware.general)
 router.use((req, res, next) => {
   const user = (req as any).user
   if (user?.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' })
+    res.status(403).json({ error: 'Admin access required' })
+    return
   }
   next()
 })
