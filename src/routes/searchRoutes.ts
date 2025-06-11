@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth'
 import { rateLimitMiddleware } from '../middleware/rateLimit'
 import { validateSearchRequest } from '../middleware/validation'
 import { logger } from '../utils/logger'
+import axios from 'axios'
 
 const router = Router()
 const SEARCH_SERVICE_URL = process.env.SEARCH_SERVICE_URL || 'http://localhost:3002'
@@ -15,33 +16,44 @@ router.use(rateLimitMiddleware.general)
 // Search ads endpoint
 router.post('/ads', 
   validateSearchRequest,
-  createProxyMiddleware({
-    target: process.env.SEARCH_SERVICE_URL,
-    changeOrigin: true,
-    pathRewrite: {
-      '^/api/v1/search': '/api/v1/search'  // This should preserve the path
-    },
-    onProxyReq: (proxyReq, req) => {
+  async (req, res, next) => {
+    try {
       const user = (req as any).user
-      proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
-      proxyReq.setHeader('X-User-Role', user?.role || 'user')
       
-      logger.info('Proxying to search service', {
+      logger.info('Forwarding search request', {
         userId: user?.id,
-        targetUrl: `${SEARCH_SERVICE_URL}${req.url}`,
-        originalUrl: req.originalUrl
+        body: req.body,
+        targetUrl: `${SEARCH_SERVICE_URL}/api/v1/search/ads`
       })
-    },
-    onError: (err, req, res) => {
-      logger.error('Search service proxy error', { 
-        error: err.message,
-        targetUrl: SEARCH_SERVICE_URL 
+      
+      const response = await axios.post(
+        `${SEARCH_SERVICE_URL}/api/v1/search/ads`,
+        req.body,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': user?.id || 'anonymous',
+            'X-User-Role': user?.role || 'user'
+          },
+          timeout: 60000
+        }
+      )
+      
+      res.status(response.status).json(response.data)
+    } catch (error: any) {
+      logger.error('Search service request failed', {
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
       })
-      if (res && !res.headersSent) {
-        (res as any).status(503).json({ error: 'Search service unavailable' })
+      
+      if (error.response) {
+        res.status(error.response.status).json(error.response.data)
+      } else {
+        res.status(503).json({ error: 'Search service unavailable' })
       }
     }
-  })
+  }
 )
 
 // Search status endpoint
