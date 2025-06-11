@@ -16,7 +16,7 @@ router.use(rateLimitMiddleware.general)
 router.post('/ads', 
   validateSearchRequest,
   createProxyMiddleware({
-    target: SEARCH_SERVICE_URL,
+    target: process.env.SEARCH_SERVICE_URL,
     changeOrigin: true,
     pathRewrite: {
       '^/api/v1/search': '/api/v1/search'  // This should preserve the path
