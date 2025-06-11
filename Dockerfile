@@ -3,15 +3,17 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY tsconfig.json ./tsconfig.json
-COPY package.json ./package.json
+COPY package.json .
+COPY package-lock.json .
+
+# Copy TypeScript config
+COPY tsconfig.json .
+
+# Copy source code
 COPY src/ ./src/
 
 # Install ALL dependencies (including dev) for building
 RUN npm install
-
-# Copy source code
-COPY api-gateway/src/ ./src/
 
 # Build the application
 RUN npm run build
