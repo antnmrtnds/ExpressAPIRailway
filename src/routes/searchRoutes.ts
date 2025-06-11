@@ -6,7 +6,7 @@ import { validateSearchRequest } from '../middleware/validation'
 import { logger } from '../utils/logger'
 
 const router = Router()
-const SEARCH_SERVICE_URL = process.env.SEARCH_SERVICE_URL || 'http://localhost:3001'
+const SEARCH_SERVICE_URL = process.env.SEARCH_SERVICE_URL || 'http://localhost:3002'
 
 // Apply middleware
 router.use(authMiddleware)
@@ -17,22 +17,26 @@ router.post('/ads',
   validateSearchRequest,
   createProxyMiddleware({
     target: SEARCH_SERVICE_URL,
-    pathRewrite: { '^/api/v1/search': '/api/v1/search' },
     changeOrigin: true,
+    pathRewrite: {
+      '^/api/v1/search': '/api/v1/search'  // This should preserve the path
+    },
     onProxyReq: (proxyReq, req) => {
-      // Add user context to request
       const user = (req as any).user
       proxyReq.setHeader('X-User-ID', user?.id || 'anonymous')
       proxyReq.setHeader('X-User-Role', user?.role || 'user')
       
-      logger.info('Proxying search request', {
+      logger.info('Proxying to search service', {
         userId: user?.id,
-        path: req.path,
-        company: (req.body as any)?.company
+        targetUrl: `${SEARCH_SERVICE_URL}${req.url}`,
+        originalUrl: req.originalUrl
       })
     },
     onError: (err, req, res) => {
-      logger.error('Search service proxy error', { error: err.message })
+      logger.error('Search service proxy error', { 
+        error: err.message,
+        targetUrl: SEARCH_SERVICE_URL 
+      })
       if (res && !res.headersSent) {
         (res as any).status(503).json({ error: 'Search service unavailable' })
       }
